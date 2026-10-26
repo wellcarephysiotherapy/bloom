@@ -121,7 +121,7 @@
  document.addEventListener('visibilitychange',onVisibility);
  window.addEventListener('pagehide',teardown);
  configure();
- // The existing startup gate decodes the scene artwork before revealing the card.
+ // Observe the scene after the usable page shell has appeared.
  if(document.documentElement.classList.contains('page-loading'))window.addEventListener('bloom:page-ready',observe,{once:true});
  else observe();
 })();

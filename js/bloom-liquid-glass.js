@@ -119,10 +119,23 @@
   ['play','pause','ended','seeked','loadeddata'].forEach(name=>video?.removeEventListener(name,onVideoState));
   if(gl){gl.deleteTexture(texture);gl.deleteBuffer(vertices);gl.deleteProgram(program);}nativeSVG?.remove();
  }
+ media.filter(item=>item.tagName==='IMG').forEach(img=>img.addEventListener('load',queue));
  scene.addEventListener('bloom:glass-depth',queue);scene.addEventListener('bloom:glass-scene-ready',queue);scene.addEventListener('animationend',onAnimationEnd);
  document.addEventListener('visibilitychange',onVisibility);window.addEventListener('pageshow',queue);window.addEventListener('pagehide',cleanup);
  ['play','pause','ended','seeked','loadeddata'].forEach(name=>video?.addEventListener(name,onVideoState));
  canvas.addEventListener('webglcontextlost',event=>{event.preventDefault();fallback();},{once:true});
- const prepared=Promise.all([window.BloomImagesReady,window.BloomReady?.when('glass-flower')]).then(init).catch(fallback);
- window.BloomReady?.add('liquid-glass',prepared);
+ // The glass lens is optional. Initialise only near its own artwork, never at startup.
+ let starting=false;
+ const prepare=()=>{
+  if(starting)return;starting=true;
+  const images=media.filter(item=>item.tagName==='IMG');
+  const ready=images.map(img=>img.complete&&img.naturalWidth?Promise.resolve():new Promise(resolve=>{
+   const finish=()=>{clearTimeout(timer);img.removeEventListener('load',finish);img.removeEventListener('error',finish);resolve();};
+   const timer=setTimeout(finish,6000);img.addEventListener('load',finish,{once:true});img.addEventListener('error',finish,{once:true});
+  }));
+  Promise.all(ready).then(init).catch(fallback);
+ };
+ if('IntersectionObserver' in window){
+  const preload=new IntersectionObserver(entries=>{if(entries[0].isIntersecting){prepare();preload.disconnect();}},{rootMargin:'500px 0px'});preload.observe(scene);
+ }else prepare();
 })();
