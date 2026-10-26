@@ -1,0 +1,28 @@
+/* Behavioural checks for an unavailable main bundle and a below-fold video. */
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
+const root=path.resolve(__dirname,'..');
+const read=file=>fs.readFileSync(path.join(root,file),'utf8');
+const timers=[],events=[],classes=new Set(['page-loading']);
+const main={removeAttribute(name){assert.equal(name,'aria-busy');this.usable=true;}};
+const loader={classList:{add(name){assert.equal(name,'is-hidden');}},remove(){}};
+const html={classList:{remove(name){classes.delete(name);}},dataset:{}};
+const window={addEventListener(){},dispatchEvent(event){events.push(event.type);}};
+vm.runInNewContext(read('js/shell-inline.js'),{document:{documentElement:html,getElementById:id=>id==='main'?main:loader},window,performance:{now:()=>1200},setTimeout:(fn,ms)=>timers.push({fn,ms}),Event:class{constructor(type){this.type=type;}}});
+assert.equal(timers[0].ms,1200);timers[0].fn();
+assert.equal(classes.has('page-loading'),false);assert.equal(main.usable,true);assert.deepEqual(events,['bloom:page-ready']);
+window.BloomShell.reveal();assert.equal(events.length,1,'Reveal must be idempotent.');
+let videoLoads=0,nearbyCallback;
+const noop=()=>{},style={removeProperty:noop,setProperty:noop};
+const video={muted:true,playsInline:true,dataset:{desktopSrc:'assets/bloom-garden-scroll.mp4',mobileSrc:'assets/bloom-garden-scroll-mobile.mp4',poster:'assets/bloom-garden-start.webp'},readyState:2,seeking:false,currentTime:0,duration:8,load(){videoLoads++;},pause:noop,addEventListener:noop,removeEventListener:noop};
+const stage={offsetHeight:720,clientWidth:1280,style,getBoundingClientRect:()=>({top:8000,bottom:8720}),addEventListener:noop};
+const simple={style};
+const section={offsetHeight:2500,dataset:{},style,classList:{toggle:noop,add:noop,remove:noop},getBoundingClientRect:()=>({top:8000}),querySelector:selector=>selector==='.bloom-stage'?stage:selector==='.bloom-video'?video:simple,querySelectorAll:()=>[]};
+const context={document:{getElementById:()=>section,hidden:false,baseURI:'https://example.com/',body:{classList:{toggle:noop}},fonts:{ready:Promise.resolve()},addEventListener:noop},window:{addEventListener:noop},location:{search:''},innerWidth:1280,innerHeight:720,scrollY:0,matchMedia:()=>({matches:false,addEventListener:noop}),requestAnimationFrame:()=>1,cancelAnimationFrame:noop,ResizeObserver:class{observe(){}},IntersectionObserver:class{constructor(callback){nearbyCallback=callback;}observe(){}disconnect(){}},URL,URLSearchParams,Event:class{},setTimeout,clearTimeout};
+context.window.IntersectionObserver=context.IntersectionObserver;
+vm.runInNewContext(read('js/bloom-scroll-video.js'),context);
+assert.equal(videoLoads,0,'A distant video must not be requested during startup.');assert.equal(video.src,undefined);
+nearbyCallback([{isIntersecting:true}]);assert.equal(videoLoads,1,'Approaching the section should request its video.');
+assert.equal(video.src,'https://example.com/assets/bloom-garden-scroll.mp4');
+const index=read('index.html');assert.match(index,/<main id="main" data-prerendered="true"><section class="hero"/);assert.match(index,/window.BloomShell/);assert.match(index,/rel="preload" as="style"/);assert.match(index,/site-skeleton/);
+for(const match of index.matchAll(/(?:href|src)="((?:css|js)\/home-runtime-[^"?]+)"/g))assert.ok(fs.existsSync(path.join(root,match[1])),match[1]);
+console.log('Passed: shell is usable without the main bundle; video loads only near its section; static content and generated assets exist.');
