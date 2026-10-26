@@ -14,7 +14,7 @@ Then open http://127.0.0.1:8000.
 
 ## Publish
 
-The GitHub Actions workflow in `.github/workflows/pages.yml` rebuilds the homepage bundle and deploys the site to GitHub Pages whenever changes reach `main`. In repository settings, set **Pages → Build and deployment → Source** to **GitHub Actions**. The published address is `https://abhinanthpy.github.io/bloom/`.
+The GitHub Actions workflow in `.github/workflows/pages.yml` rebuilds the homepage bundle and deploys the site to GitHub Pages whenever changes reach `main`. In repository settings, set **Pages → Build and deployment → Source** to **GitHub Actions**. The published address is `https://wellcarebloom.in/`.
 
 ## Pages
 
@@ -26,10 +26,4 @@ Contact and consultation pages provide direct telephone, email and Google Maps l
 
 ## Media
 
-The homepage ships one content-hashed stylesheet and one content-hashed deferred script. `js/page-ready.js` waits for decoded page images/backgrounds, fonts, native animation setup, the hero portrait renderer and the complete selected flower video before revealing the page. Geometry is refreshed and the initial video position is decoded before reveal. There is no minimum wait or timer that exposes incomplete content. A genuine loading error offers a retry action.
-
-The complete flower MP4 is persisted in Cache Storage when available and replayed from a local blob URL, preventing new network range requests during scroll seeking. Only the desktop or mobile variant is downloaded. Ordinary browser caching handles images and versioned bundles. Local `file:` previews load the video directly from disk. Hero CSS animations stay paused behind the loader, and scroll reveals begin after readiness, so their entrances are visible. Audio remains opt-in and is excluded from the startup gate.
-
-A 1–2 second startup is the target for cached visits, not a fixed timer or a guarantee on every first connection. Slow or failed network access may take longer. `data-startup-state`, `data-startup-ms`, `data-animations-ready` and the Bloom scene's `data-bloom-cache`/`data-bloom-prepared` attributes describe the actual observed state.
-
-Images and fonts are stored locally in `assets/`. The original layout reference was created by Anton Drukarov and published at https://templatoria.com/. Some inherited images, fonts and audio came from that public reference; review and meet their licensing requirements before commercial use. Bloom posters and clinical copy were supplied by the client. Current clinic contact details are from https://wellcarephysiotherapy.in/contact.html.
+The homepage HTML is rendered during the build, with inline first-screen styles and a small independent reveal script. The loading cover has a 1.2-second budget; a delayed main bundle, font, below-fold image or video cannot hold it open. The rest of the stylesheet loads without blocking that first screen. A lightweight section skeleton remains while styles arrive, and native lazy images reserve their space. The video begins native streaming only within 900px of its section; glass refraction and portrait depth are optional enhancements. A complete page cannot be guaranteed within a fixed time on every connection, but distant media no longer blocks readable content or consultation links. Run `node scripts/check-startup.cjs` after the build to check these contracts. Images and fonts are stored locally in `assets/`. The original layout reference was created by Anton Drukarov and published at https://templatoria.com/. Some inherited images, fonts and audio came from that public reference; review and meet their licensing requirements before commercial use. Bloom posters and clinical copy were supplied by the client. Current clinic contact details are from https://wellcarephysiotherapy.in/contact.html.

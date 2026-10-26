@@ -144,14 +144,17 @@
  reduced.addEventListener('change',()=>{if(!raf)raf=requestAnimationFrame(animate);if(reduced.matches){document.querySelectorAll('.word').forEach(w=>{w.style.filter='none';w.style.opacity=1});if(heroCopy){heroCopy.style.opacity=1;heroCopy.style.transform='none';heroCopy.style.filter='none'}if(portrait){portrait.style.opacity=1;portrait.style.transform='none';portrait.classList.remove('has-depth')}}else if(portraitReady){portrait.classList.add('has-depth')}measure()});
  window.addEventListener('resize',measure,{passive:true});
  window.addEventListener('load',measure);
+ window.addEventListener('bloom:styles-ready',measure);
  document.fonts.ready.then(measure);
- const motionReady=(window.BloomImagesReady||Promise.resolve()).catch(()=>{}).then(async()=>{
-  await setupPortrait();
-  measure();
-  await new Promise(resolve=>requestAnimationFrame(resolve));
-  document.documentElement.dataset.animationsReady='true';
- });
+ // Set up scroll geometry immediately; the portrait's optional depth map is idle work.
+ const motionReady=Promise.resolve().then(()=>{measure();document.documentElement.dataset.animationsReady='true';});
  window.BloomReady?.add('animations',motionReady);
+ const enhancePortrait=()=>{
+  const start=()=>{if(heroVisible&&!document.hidden)setupPortrait();};
+  if(document.documentElement.classList.contains('style-loading')){window.addEventListener('bloom:styles-ready',start,{once:true});return;}
+  if('requestIdleCallback' in window)requestIdleCallback(start,{timeout:2500});else setTimeout(start,500);
+ };
+ if(document.documentElement.classList.contains('page-loading'))window.addEventListener('bloom:page-ready',enhancePortrait,{once:true});else enhancePortrait();
  window.addEventListener('bloom:before-reveal',measure);
  measure();raf=requestAnimationFrame(animate);
 })();

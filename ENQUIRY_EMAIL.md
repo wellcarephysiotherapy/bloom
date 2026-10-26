@@ -9,8 +9,8 @@ Both pages use app.js for the shared form and js/enquiry-form.js for review-befo
 FormSubmit requires the recipient to confirm its activation email. Check Inbox and Spam and activate the live website forms. Delivery is not verified until the owner confirms activation and receipt. An activation/setup submission contains only website setup information, never a patient booking.
 
 Live pages:
-- https://abhinanthpy.github.io/bloom/contact.html
-- https://abhinanthpy.github.io/bloom/book-a-consultation.html
+- https://wellcarebloom.in/contact.html
+- https://wellcarebloom.in/book-a-consultation.html
 
 ## Operation
 
