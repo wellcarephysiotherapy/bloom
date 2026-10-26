@@ -3,6 +3,9 @@
 from pathlib import Path
 import hashlib
 import re
+import json
+import os
+import subprocess
 
 ROOT = Path(__file__).resolve().parent.parent
 JS = ['js/page-ready.js', 'app.js', 'js/media-loader.js', 'animations.js', 'js/bloom-scroll-video.js', 'js/bloom-glass.js', 'js/bloom-flower-video.js', 'js/bloom-liquid-glass.js']
@@ -32,8 +35,18 @@ script = bundle(JS, 'js')
 style = bundle(CSS, 'css')
 html_path = ROOT / 'index.html'
 html = html_path.read_text()
+# Render content before shipping HTML: a slow script never leaves an empty main.
+rendered = json.loads(subprocess.check_output([os.environ.get('NODE_BINARY', 'node'), str(ROOT / 'scripts/render-home.cjs')], text=True))
+skeleton = '<div class="site-skeleton" aria-hidden="true"><span></span><span></span><span></span></div>'
+html = re.sub(r'<main id="main"[^>]*>.*?</main>', lambda _: '<main id="main" data-prerendered="true">' + rendered['main'] + skeleton + '</main>', html, flags=re.S)
+html = re.sub(r'<footer id="footer"[^>]*>.*?</footer>', lambda _: '<footer id="footer" class="footer-bloom" data-prerendered="true">' + rendered['footer'] + '</footer>', html, flags=re.S)
+inline = '  <!-- SHELL_INLINE_BEGIN -->\n  <style>' + (ROOT / 'css/critical-home.css').read_text() + '</style>\n  <script>' + (ROOT / 'js/shell-inline.js').read_text() + '</script>\n  <!-- SHELL_INLINE_END -->'
+html = re.sub(r'  <!-- SHELL_INLINE_BEGIN -->.*?  <!-- SHELL_INLINE_END -->', lambda _: inline, html, flags=re.S)
+whatsapp = '  <!-- WHATSAPP_BEGIN -->' + rendered['whatsapp'] + '<!-- WHATSAPP_END -->'
+html = re.sub(r'  <!-- WHATSAPP_BEGIN -->.*?<!-- WHATSAPP_END -->', lambda _: whatsapp, html, flags=re.S)
+
 block = f'''  <!-- HOME_ASSETS_BEGIN -->
-  <link rel="stylesheet" href="{style}" onerror="window.dispatchEvent(new Event('bloom:startup-error'))">
+  <link rel="preload" as="style" href="{style}" onload="this.onload=null;this.rel='stylesheet';document.documentElement.classList.remove('style-loading');window.dispatchEvent(new Event('bloom:styles-ready'))" onerror="window.dispatchEvent(new Event('bloom:startup-error'))">\n  <noscript><link rel="stylesheet" href="{style}"></noscript>
   <link rel="preload" href="{script}" as="script">
   <script src="{script}" defer onerror="window.dispatchEvent(new Event('bloom:startup-error'))"></script>
   <!-- HOME_ASSETS_END -->'''

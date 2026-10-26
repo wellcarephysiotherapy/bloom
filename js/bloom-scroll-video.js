@@ -12,7 +12,7 @@
  const manualStatic=new URLSearchParams(location.search).get('bloom-motion')==='off';
  const clamp=(value,min=0,max=1)=>Math.max(min,Math.min(max,value));
  const smooth=value=>{const x=clamp(value);return x*x*(3-2*x);};
- let enabled=false,requested=false,failed=false,warming=false,raf=0,readyPromise=null,objectURL=null;
+ let enabled=false,requested=false,failed=false,warming=false,raf=0,readyPromise=null,nearby=false;
  let top=0,travel=1,stageHeight=1;
  let pointerX=0,pointerY=0,easedX=0,easedY=0;
  video.muted=true;
@@ -24,35 +24,6 @@
   top=section.getBoundingClientRect().top+scrollY;
   travel=Math.max(1,section.offsetHeight-stageHeight);
   queue();
- }
- async function completeVideo(url){
-  let cache;
-  try{
-   cache=await caches.open('bloom-complete-video-v1');
-   const saved=await cache.match(url);
-   if(saved?.ok){
-    const blob=await saved.blob();
-    if(blob.size){section.dataset.bloomCache='hit';return blob;}
-   }
-  }catch{}
-  let response;
-  for(let attempt=0;attempt<2;attempt++){
-   try{
-    response=await fetch(url,{cache:attempt?'reload':'force-cache'});
-    if(response.status!==200)throw Error('Incomplete video response');
-    break;
-   }catch(error){if(attempt)throw error;}
-  }
-  const blob=await response.blob();
-  if(!blob.size)throw Error('Empty video');
-  section.dataset.bloomCache='downloaded';
-  if(cache){
-   try{
-    await cache.put(url,new Response(blob,{headers:{'Content-Type':'video/mp4'}}));
-    section.dataset.bloomCache='stored';
-   }catch{}
-  }
-  return blob;
  }
  function waitForFrame(time){
   return new Promise((resolve,reject)=>{
@@ -79,17 +50,11 @@
   readyPromise=(async()=>{
    const url=new URL(innerWidth<=809?video.dataset.mobileSrc:video.dataset.desktopSrc,document.baseURI).href;
    video.preload='auto';
-   if(location.protocol==='file:'){
-    video.src=url;section.dataset.bloomCache='local';
-   }else{
-    objectURL=URL.createObjectURL(await completeVideo(url));
-    video.src=objectURL;
-   }
+   // Native media loading can start with the first frame, without downloading the whole MP4.
+   video.poster=video.dataset.poster;
+   video.src=url;
    video.load();
    await waitForFrame();
-   // Warm both ends of the decoder while the loading screen still covers the page.
-   await waitForFrame(Math.max(0,video.duration-1/24));
-   await waitForFrame(0);
    warming=false;
    section.dataset.bloomPrepared='true';
    section.dataset.bloomState='ready';
@@ -113,7 +78,7 @@
    brand.style.removeProperty('opacity');brand.style.removeProperty('transform');
   }
   measure();
-  if(enabled&&!requested)prepare();
+  if(enabled&&nearby&&!requested)prepare().catch(()=>{});
  }
  function update(){
   raf=0;
@@ -191,7 +156,7 @@
  window.addEventListener('pageshow',measure);
  window.addEventListener('pagehide',event=>{
   cancelAnimationFrame(raf);raf=0;video.pause();
-  if(!event.persisted&&objectURL)URL.revokeObjectURL(objectURL);
+
  });
  document.addEventListener('visibilitychange',()=>{
   if(document.hidden){cancelAnimationFrame(raf);raf=0;video.pause();}else measure();
@@ -210,14 +175,13 @@
  window.addEventListener('load',measure,{once:true});
  window.addEventListener('bloom:before-reveal',measure);
  configure();
- window.BloomReady?.add('bloom-video',prepare());
- window.BloomReady?.prepare(async()=>{
-  if(!enabled)return;
-  warming=true;measure();
-  const progress=clamp((scrollY-top)/travel);
-  const last=Math.max(0,video.duration-1/24);
-  const time=Math.min(last,Math.round(clamp((progress-.08)/.68)*last*24)/24);
-  await waitForFrame(time);
-  warming=false;update();
- });
+ // Fetch the garden video only as the visitor approaches this section.
+ if('IntersectionObserver' in window){
+  const observer=new IntersectionObserver(entries=>{
+   if(!entries[0].isIntersecting)return;nearby=true;
+   if(enabled)prepare().catch(()=>{});observer.disconnect();
+  },{rootMargin:'900px 0px'});
+  observer.observe(section);
+ }else{nearby=true;if(enabled)prepare().catch(()=>{});}
+ window.BloomReady?.prepare(measure);
 })();

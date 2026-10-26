@@ -126,3 +126,12 @@ html.page-loading .whatsapp-float,body.menu-open .whatsapp-float{visibility:hidd
 @media(max-width:809px){.whatsapp-float{right:max(20px,env(safe-area-inset-right));bottom:calc(22px + env(safe-area-inset-bottom));width:52px;height:52px}.whatsapp-float>svg{width:29px;height:29px}}
 @media(prefers-reduced-motion:reduce){.whatsapp-float,.whatsapp-float-label{transition:none}}
 @media print{.whatsapp-float{display:none}}
+
+/* Progressive media stays local to its section, without holding the whole page. */
+[data-lazy-background]:not(.is-nearby),[data-lazy-background]:not(.is-nearby)::before,[data-lazy-background]:not(.is-nearby)::after{background-image:none!important}
+img[data-media-state="loading"]{background:linear-gradient(110deg,#f3e6ed,#e4edf5 48%,#f9edf2)}
+html.js-pending .reveal{opacity:1;transform:none;filter:none}
+.site-skeleton{display:none}
+html.style-loading #main>:not(#hero):not(.site-skeleton),html.style-loading #footer{display:none}
+html.style-loading .site-skeleton{display:grid}
+html:not(.page-loading) .page-loader{opacity:0;visibility:hidden;pointer-events:none}
